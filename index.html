@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE 瀏覽器偵測 POC</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .browser-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .browser-info p {
+            margin: 10px 0;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .browser-info strong {
+            color: #333;
+        }
+
+        /* 提示對話框 */
+        #line-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 90%;
+            width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translate(-50%, -40%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .modal-text {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .modal-hint {
+            background: #fff8c5;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #856404;
+            text-align: left;
+        }
+
+        .modal-hint strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .status-line {
+            background: #06c755;
+            color: white;
+        }
+
+        .status-normal {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: white;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主要內容 -->
+    <div class="main-content">
+        <h1>LINE 瀏覽器偵測系統</h1>
+        <p style="color: #666; margin-bottom: 20px;">此為概念驗證（POC）頁面</p>
+
+        <div id="status"></div>
+
+        <div class="browser-info">
+            <p><strong>User Agent:</strong></p>
+            <p id="userAgent"></p>
+            <p style="margin-top: 15px;"><strong>偵測結果:</strong></p>
+            <p id="detectionResult"></p>
+        </div>
+    </div>
+
+    <!-- LINE 瀏覽器警告對話框 -->
+    <div id="line-modal">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <div class="modal-title">偵測到 LINE 瀏覽器</div>
+            <p class="modal-text">
+                您目前使用的是 LINE 內建瀏覽器。<br>
+                部分功能可能無法正常運作。
+            </p>
+
+            <div class="modal-hint">
+                <strong>💡 建議操作：</strong>
+                點擊右上角「⋮」選單<br>
+                選擇「在瀏覽器中開啟」
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="openInExternalBrowser()">
+                    🌐 開啟外部瀏覽器
+                </button>
+                <button class="btn btn-secondary" onclick="stayInLine()">
+                    ✓ 我知道了，繼續使用
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 LINE Browser Detection POC
+    </div>
+
+    <script>
+        /**
+         * 判斷是否在 LINE App 內建瀏覽器中
+         * @return {boolean}
+         */
+        function isLineBrowser() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua);
+        }
+
+        /**
+         * 判斷是否為 iOS LINE 瀏覽器
+         * @return {boolean}
+         */
+        function isLineIOS() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua) && /iPhone|iPad|iPod/i.test(ua);
+        }
+
+        /**
+         * 判斷是否為 Android LINE 瀏覽器
+         * @return {boolean}
+         */
+        function isLineAndroid() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua) && /Android/i.test(ua);
+        }
+
+        /**
+         * 顯示 LINE 瀏覽器提示對話框
+         */
+        function showLineModal() {
+            const modal = document.getElementById('line-modal');
+            if (modal) {
+                modal.style.display = 'block';
+            }
+        }
+
+        /**
+         * 隱藏 LINE 瀏覽器提示對話框
+         */
+        function hideLineModal() {
+            const modal = document.getElementById('line-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        /**
+         * 開啟外部瀏覽器
+         */
+        function openInExternalBrowser() {
+            // 記錄用戶選擇
+            localStorage.setItem('browserChoice', 'external');
+
+            const url = window.location.href;
+            const separator = url.includes('?') ? '&' : '?';
+
+            // 嘗試在外部瀏覽器開啟
+            window.location.href = url + separator + 'openExternalBrowser=1';
+
+            // 給予一些時間讓跳轉發生，若失敗則顯示手動指示
+            setTimeout(() => {
+                alert('請點擊右上角選單「⋮」，選擇「在瀏覽器中開啟」');
+                hideLineModal();
+            }, 1000);
+        }
+
+        /**
+         * 用戶選擇留在 LINE 瀏覽器
+         */
+        function stayInLine() {
+            // 記錄用戶選擇（本次會話有效）
+            sessionStorage.setItem('lineWarningDismissed', 'true');
+            hideLineModal();
+        }
+
+        /**
+         * 檢查是否應該顯示警告
+         */
+        function shouldShowWarning() {
+            // 如果用戶在本次會話中已經做出選擇，則不再顯示
+            return !sessionStorage.getItem('lineWarningDismissed');
+        }
+
+        /**
+         * 顯示瀏覽器資訊
+         */
+        function displayBrowserInfo() {
+            const userAgentElement = document.getElementById('userAgent');
+            const detectionResultElement = document.getElementById('detectionResult');
+            const statusElement = document.getElementById('status');
+
+            // 顯示 User Agent
+            userAgentElement.textContent = navigator.userAgent;
+
+            // 顯示偵測結果
+            if (isLineBrowser()) {
+                let platform = '';
+                if (isLineIOS()) {
+                    platform = ' (iOS)';
+                } else if (isLineAndroid()) {
+                    platform = ' (Android)';
+                }
+
+                detectionResultElement.innerHTML = `
+                    <span style="color: #06c755; font-weight: bold;">✓ LINE 內建瀏覽器${platform}</span>
+                `;
+
+                statusElement.innerHTML = '<span class="status-badge status-line">目前使用 LINE 瀏覽器</span>';
+
+                // 顯示警告對話框（如果應該顯示）
+                if (shouldShowWarning()) {
+                    showLineModal();
+                }
+            } else {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #4CAF50; font-weight: bold;">✓ 一般瀏覽器</span>
+                `;
+
+                statusElement.innerHTML = '<span class="status-badge status-normal">外部瀏覽器運作正常</span>';
+            }
+        }
+
+        // 頁面載入時執行
+        window.addEventListener('DOMContentLoaded', () => {
+            displayBrowserInfo();
+        });
+
+        // 處理從外部瀏覽器開啟的情況
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openExternalBrowser') === '1' && !isLineBrowser()) {
+                console.log('成功在外部瀏覽器中開啟！');
+            }
+        });
+    </script>
+</body>
+</html>
