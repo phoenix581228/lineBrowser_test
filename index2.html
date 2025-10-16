@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE 瀏覽器自動跳轉 POC v2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: #ff6b6b;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .browser-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .browser-info p {
+            margin: 10px 0;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .browser-info strong {
+            color: #333;
+        }
+
+        .action-log {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .action-log p {
+            margin: 5px 0;
+            color: #1976d2;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* 提示對話框 */
+        #line-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 90%;
+            width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translate(-50%, -40%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .modal-text {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .modal-hint {
+            background: #fff8c5;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #856404;
+            text-align: left;
+        }
+
+        .modal-hint strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .platform-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 5px;
+        }
+
+        .platform-ios {
+            background: #007aff;
+            color: white;
+        }
+
+        .platform-android {
+            background: #3ddc84;
+            color: white;
+        }
+
+        .countdown {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .status-line {
+            background: #06c755;
+            color: white;
+        }
+
+        .status-normal {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .test-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .test-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主要內容 -->
+    <div class="main-content">
+        <span class="version-badge">VERSION 2.0 - 自動跳轉</span>
+        <h1>LINE 瀏覽器自動跳轉系統</h1>
+        <p style="color: #666; margin-bottom: 20px;">
+            iOS → Safari | Android → Chrome
+        </p>
+
+        <div id="status"></div>
+
+        <div class="browser-info">
+            <p><strong>User Agent:</strong></p>
+            <p id="userAgent"></p>
+            <p style="margin-top: 15px;"><strong>偵測結果:</strong></p>
+            <p id="detectionResult"></p>
+        </div>
+
+        <div class="action-log" id="actionLog">
+            <strong>執行日誌：</strong>
+        </div>
+
+        <div class="test-buttons">
+            <button class="test-btn" onclick="testSafariOpen()">🍎 測試 Safari 開啟</button>
+            <button class="test-btn" onclick="testChromeOpen()">🤖 測試 Chrome 開啟</button>
+            <button class="test-btn" onclick="testDefaultOpen()">🌐 測試預設瀏覽器</button>
+        </div>
+    </div>
+
+    <!-- LINE 瀏覽器跳轉對話框 -->
+    <div id="line-modal">
+        <div class="modal-content">
+            <div class="modal-icon">🚀</div>
+            <div class="modal-title">自動跳轉中...</div>
+            <p class="modal-text" id="platformInfo"></p>
+
+            <div class="countdown" id="countdown">3</div>
+
+            <div class="modal-hint">
+                <strong id="instructionTitle">⏱️ 自動跳轉說明：</strong>
+                <span id="instructionText"></span>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="triggerManualOpen()" id="manualOpenBtn">
+                    立即開啟
+                </button>
+                <button class="btn btn-secondary" onclick="cancelAutoRedirect()">
+                    ✗ 取消跳轉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 LINE Browser Auto-Redirect POC v2
+    </div>
+
+    <script>
+        // 全局變數
+        let countdownTimer = null;
+        let countdownValue = 3;
+        let targetPlatform = '';
+
+        /**
+         * 記錄執行日誌
+         */
+        function logAction(message) {
+            const logDiv = document.getElementById('actionLog');
+            const timestamp = new Date().toLocaleTimeString('zh-TW');
+            const logEntry = document.createElement('p');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        /**
+         * 判斷是否在 LINE App 內建瀏覽器中
+         */
+        function isLineBrowser() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua);
+        }
+
+        /**
+         * 判斷是否為 iOS LINE 瀏覽器
+         */
+        function isLineIOS() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua) && /iPhone|iPad|iPod/i.test(ua);
+        }
+
+        /**
+         * 判斷是否為 Android LINE 瀏覽器
+         */
+        function isLineAndroid() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua) && /Android/i.test(ua);
+        }
+
+        /**
+         * 在 Safari 中開啟（iOS）
+         */
+        function openInSafari() {
+            const currentUrl = window.location.href;
+            logAction('嘗試在 Safari 中開啟...');
+
+            // 方法 1: 使用自定義 URL Scheme
+            const safariUrl = `x-web-search://?${encodeURIComponent(currentUrl)}`;
+
+            // 嘗試多種方法
+            try {
+                // 先嘗試 Safari URL Scheme
+                window.location.href = safariUrl;
+                logAction('已發送 Safari URL Scheme 請求');
+
+                // 備用方法：使用標準 HTTP 協議（某些情況下會提示選擇瀏覽器）
+                setTimeout(() => {
+                    window.open(currentUrl, '_system');
+                    logAction('使用 _system 目標開啟');
+                }, 500);
+
+                // 最終備用：直接重新載入（可能觸發選擇瀏覽器）
+                setTimeout(() => {
+                    window.location.href = currentUrl;
+                    logAction('使用標準 location.href 重導向');
+                }, 1000);
+
+            } catch (e) {
+                logAction('錯誤: ' + e.message);
+                showManualInstruction('ios');
+            }
+        }
+
+        /**
+         * 在 Chrome 中開啟（Android）
+         */
+        function openInChrome() {
+            const currentUrl = window.location.href;
+            logAction('嘗試在 Chrome 中開啟...');
+
+            // Android Chrome Intent URL
+            const chromeIntent = `intent://${currentUrl.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+
+            try {
+                // 方法 1: 使用 Chrome Intent
+                window.location.href = chromeIntent;
+                logAction('已發送 Chrome Intent 請求');
+
+                // 備用方法：使用 googlechrome:// scheme
+                setTimeout(() => {
+                    const googleChromeUrl = currentUrl.replace(/^https?:/, 'googlechrome:');
+                    window.location.href = googleChromeUrl;
+                    logAction('使用 googlechrome:// scheme');
+                }, 500);
+
+                // 最終備用：標準開啟
+                setTimeout(() => {
+                    window.open(currentUrl, '_blank');
+                    logAction('使用 window.open 開啟');
+                }, 1000);
+
+            } catch (e) {
+                logAction('錯誤: ' + e.message);
+                showManualInstruction('android');
+            }
+        }
+
+        /**
+         * 在預設瀏覽器中開啟
+         */
+        function openInDefaultBrowser() {
+            const currentUrl = window.location.href;
+            logAction('嘗試在預設瀏覽器中開啟...');
+
+            try {
+                // 嘗試多種開啟方式
+                window.open(currentUrl, '_blank');
+
+                setTimeout(() => {
+                    window.location.href = currentUrl + '?openExternal=1';
+                }, 500);
+
+            } catch (e) {
+                logAction('錯誤: ' + e.message);
+            }
+        }
+
+        /**
+         * 顯示手動操作說明
+         */
+        function showManualInstruction(platform) {
+            const instructionTitle = document.getElementById('instructionTitle');
+            const instructionText = document.getElementById('instructionText');
+
+            if (platform === 'ios') {
+                instructionTitle.textContent = '📱 iOS 手動操作：';
+                instructionText.textContent = '點擊右下角分享按鈕 (⬆️)，選擇「在 Safari 中開啟」';
+            } else if (platform === 'android') {
+                instructionTitle.textContent = '🤖 Android 手動操作：';
+                instructionText.textContent = '點擊右上角選單 (⋮)，選擇「在 Chrome 瀏覽器中開啟」';
+            }
+        }
+
+        /**
+         * 顯示跳轉對話框
+         */
+        function showRedirectModal(platform) {
+            const modal = document.getElementById('line-modal');
+            const platformInfo = document.getElementById('platformInfo');
+            const instructionTitle = document.getElementById('instructionTitle');
+            const instructionText = document.getElementById('instructionText');
+
+            targetPlatform = platform;
+
+            if (platform === 'ios') {
+                platformInfo.innerHTML = `
+                    偵測到 <span class="platform-badge platform-ios">iOS LINE 瀏覽器</span><br>
+                    即將在 Safari 中開啟
+                `;
+                instructionTitle.textContent = '⏱️ 3 秒後自動跳轉';
+                instructionText.textContent = '系統將嘗試自動在 Safari 中開啟此頁面';
+            } else if (platform === 'android') {
+                platformInfo.innerHTML = `
+                    偵測到 <span class="platform-badge platform-android">Android LINE 瀏覽器</span><br>
+                    即將在 Chrome 中開啟
+                `;
+                instructionTitle.textContent = '⏱️ 3 秒後自動跳轉';
+                instructionText.textContent = '系統將嘗試自動在 Chrome 中開啟此頁面';
+            }
+
+            modal.style.display = 'block';
+            startCountdown();
+        }
+
+        /**
+         * 開始倒數計時
+         */
+        function startCountdown() {
+            countdownValue = 3;
+            const countdownElement = document.getElementById('countdown');
+
+            countdownTimer = setInterval(() => {
+                countdownValue--;
+                countdownElement.textContent = countdownValue;
+
+                if (countdownValue <= 0) {
+                    clearInterval(countdownTimer);
+                    triggerAutoRedirect();
+                }
+            }, 1000);
+        }
+
+        /**
+         * 觸發自動跳轉
+         */
+        function triggerAutoRedirect() {
+            if (targetPlatform === 'ios') {
+                openInSafari();
+            } else if (targetPlatform === 'android') {
+                openInChrome();
+            }
+        }
+
+        /**
+         * 手動觸發跳轉
+         */
+        function triggerManualOpen() {
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+            }
+            triggerAutoRedirect();
+        }
+
+        /**
+         * 取消自動跳轉
+         */
+        function cancelAutoRedirect() {
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+            }
+            document.getElementById('line-modal').style.display = 'none';
+            logAction('用戶取消自動跳轉');
+            sessionStorage.setItem('autoRedirectCancelled', 'true');
+        }
+
+        /**
+         * 顯示瀏覽器資訊
+         */
+        function displayBrowserInfo() {
+            const userAgentElement = document.getElementById('userAgent');
+            const detectionResultElement = document.getElementById('detectionResult');
+            const statusElement = document.getElementById('status');
+
+            // 顯示 User Agent
+            userAgentElement.textContent = navigator.userAgent;
+            logAction('頁面載入完成');
+            logAction('User Agent: ' + navigator.userAgent);
+
+            // 顯示偵測結果
+            if (isLineIOS()) {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #007aff; font-weight: bold;">✓ iOS LINE 內建瀏覽器</span>
+                    <span class="platform-badge platform-ios">iOS</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-line">準備跳轉至 Safari</span>';
+                logAction('偵測到 iOS LINE 瀏覽器');
+
+                // 檢查是否已取消自動跳轉
+                if (!sessionStorage.getItem('autoRedirectCancelled')) {
+                    setTimeout(() => {
+                        showRedirectModal('ios');
+                    }, 1000);
+                }
+            } else if (isLineAndroid()) {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #3ddc84; font-weight: bold;">✓ Android LINE 內建瀏覽器</span>
+                    <span class="platform-badge platform-android">Android</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-line">準備跳轉至 Chrome</span>';
+                logAction('偵測到 Android LINE 瀏覽器');
+
+                // 檢查是否已取消自動跳轉
+                if (!sessionStorage.getItem('autoRedirectCancelled')) {
+                    setTimeout(() => {
+                        showRedirectModal('android');
+                    }, 1000);
+                }
+            } else if (isLineBrowser()) {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #06c755; font-weight: bold;">✓ LINE 內建瀏覽器（未知平台）</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-line">LINE 瀏覽器</span>';
+                logAction('偵測到 LINE 瀏覽器（未知平台）');
+            } else {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #4CAF50; font-weight: bold;">✓ 一般瀏覽器</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-normal">外部瀏覽器運作正常</span>';
+                logAction('偵測到一般瀏覽器');
+            }
+        }
+
+        // 測試函數
+        function testSafariOpen() {
+            logAction('手動測試：嘗試開啟 Safari');
+            openInSafari();
+        }
+
+        function testChromeOpen() {
+            logAction('手動測試：嘗試開啟 Chrome');
+            openInChrome();
+        }
+
+        function testDefaultOpen() {
+            logAction('手動測試：嘗試開啟預設瀏覽器');
+            openInDefaultBrowser();
+        }
+
+        // 頁面載入時執行
+        window.addEventListener('DOMContentLoaded', () => {
+            displayBrowserInfo();
+        });
+
+        // 處理從外部瀏覽器開啟的情況
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openExternal') === '1' && !isLineBrowser()) {
+                logAction('成功在外部瀏覽器中開啟！');
+            }
+        });
+    </script>
+</body>
+</html>
