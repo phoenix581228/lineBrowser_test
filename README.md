@@ -12,19 +12,38 @@
 - ✅ 提供開啟外部瀏覽器或繼續使用的選項
 - ✅ 顯示詳細的瀏覽器資訊
 
-### 🚀 Version 2 - 自動跳轉模式
+### 🚀 Version 2 - 自動跳轉模式（實驗性）
 **網址**: https://phoenix581228.github.io/lineBrowser_test/index2.html
 
-- ✅ **iOS LINE 瀏覽器 → 自動開啟 Safari**
+- ✅ **iOS LINE 瀏覽器 → 嘗試自動開啟 Safari**
 - ✅ **Android LINE 瀏覽器 → 自動開啟 Chrome**
 - ✅ 3 秒倒數計時，可手動觸發或取消
 - ✅ 詳細的執行日誌，方便除錯
 - ✅ 測試按鈕，可手動測試各種跳轉方式
+- ⚠️ **注意**：iOS 可能因安全限制無法直接開啟 Safari
+
+### 🎯 Version 3 - 智能引導模式（推薦）
+**網址**: https://phoenix581228.github.io/lineBrowser_test/index3.html
+
+- ✅ **清楚的圖文操作指引**
+- ✅ **iOS**：引導使用分享按鈕 → 在 Safari 中開啟
+- ✅ **Android**：引導使用選單 → 在 Chrome 中開啟
+- ✅ 提供複製網址功能作為備用方案
+- ✅ 更好的視覺設計和用戶體驗
+- ✅ 避免技術限制，100% 可靠
+
+#### 為什麼需要 Version 3？
+
+由於 iOS 安全機制限制，從 LINE 內建瀏覽器**無法直接程式化開啟 Safari**：
+- `x-web-search://` scheme 可能開啟 Google 或其他搜尋應用
+- iOS 限制跨應用程式自動啟動
+- 最可靠的方法是引導用戶手動操作
 
 ## 線上展示
 
-- **Version 1**: https://phoenix581228.github.io/lineBrowser_test/
-- **Version 2**: https://phoenix581228.github.io/lineBrowser_test/index2.html
+- **Version 1** (手動選擇): https://phoenix581228.github.io/lineBrowser_test/
+- **Version 2** (自動跳轉-實驗): https://phoenix581228.github.io/lineBrowser_test/index2.html
+- **Version 3** (智能引導-推薦): https://phoenix581228.github.io/lineBrowser_test/index3.html
 
 ## 使用方式
 
@@ -35,15 +54,27 @@
    - 🌐 開啟外部瀏覽器
    - ✓ 繼續使用 LINE 瀏覽器
 
-### Version 2 - 自動跳轉
+### Version 2 - 自動跳轉（實驗性）
 1. 在 LINE 聊天中分享 Version 2 URL
 2. 點擊連結用 LINE 內建瀏覽器開啟
 3. 系統自動偵測平台：
-   - 🍎 iOS → 3 秒後自動跳轉至 Safari
+   - 🍎 iOS → 3 秒後嘗試跳轉（可能開啟非 Safari 瀏覽器）
    - 🤖 Android → 3 秒後自動跳轉至 Chrome
 4. 倒數期間可以：
    - 立即開啟：跳過倒數直接跳轉
    - 取消跳轉：留在 LINE 瀏覽器
+
+### Version 3 - 智能引導（推薦）
+1. 在 LINE 聊天中分享 Version 3 URL
+2. 點擊連結用 LINE 內建瀏覽器開啟
+3. 系統顯示清楚的操作指引：
+   - 🍎 **iOS 用戶**：
+     1. 點擊右下角分享按鈕 (⬆️)
+     2. 選擇「在 Safari 中開啟」
+   - 🤖 **Android 用戶**：
+     1. 點擊右上角選單 (⋮)
+     2. 選擇「在 Chrome 中開啟」
+4. 可使用「複製網址」按鈕作為備用方案
 
 ## 技術實作
 
