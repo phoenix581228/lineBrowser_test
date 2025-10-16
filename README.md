@@ -2,24 +2,48 @@
 
 這是一個概念驗證（POC）專案，用於偵測用戶是否使用 LINE 內建瀏覽器，並提供跳轉到外部瀏覽器的選項。
 
-## 功能特色
+## 版本說明
+
+### 📱 Version 1 - 手動選擇模式
+**網址**: https://phoenix581228.github.io/lineBrowser_test/
 
 - ✅ 自動偵測 LINE 內建瀏覽器（支援 iOS 和 Android）
 - ✅ 顯示友善的警告對話框
 - ✅ 提供開啟外部瀏覽器或繼續使用的選項
 - ✅ 顯示詳細的瀏覽器資訊
 
+### 🚀 Version 2 - 自動跳轉模式
+**網址**: https://phoenix581228.github.io/lineBrowser_test/index2.html
+
+- ✅ **iOS LINE 瀏覽器 → 自動開啟 Safari**
+- ✅ **Android LINE 瀏覽器 → 自動開啟 Chrome**
+- ✅ 3 秒倒數計時，可手動觸發或取消
+- ✅ 詳細的執行日誌，方便除錯
+- ✅ 測試按鈕，可手動測試各種跳轉方式
+
 ## 線上展示
 
-訪問 GitHub Pages: https://phoenix581228.github.io/lineBrowser_test/
+- **Version 1**: https://phoenix581228.github.io/lineBrowser_test/
+- **Version 2**: https://phoenix581228.github.io/lineBrowser_test/index2.html
 
 ## 使用方式
 
-1. 在 LINE 聊天中分享此專案的 URL
+### Version 1 - 手動選擇
+1. 在 LINE 聊天中分享 Version 1 URL
 2. 點擊連結用 LINE 內建瀏覽器開啟
 3. 會自動彈出警告對話框，可選擇：
    - 🌐 開啟外部瀏覽器
    - ✓ 繼續使用 LINE 瀏覽器
+
+### Version 2 - 自動跳轉
+1. 在 LINE 聊天中分享 Version 2 URL
+2. 點擊連結用 LINE 內建瀏覽器開啟
+3. 系統自動偵測平台：
+   - 🍎 iOS → 3 秒後自動跳轉至 Safari
+   - 🤖 Android → 3 秒後自動跳轉至 Chrome
+4. 倒數期間可以：
+   - 立即開啟：跳過倒數直接跳轉
+   - 取消跳轉：留在 LINE 瀏覽器
 
 ## 技術實作
 
