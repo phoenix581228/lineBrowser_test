@@ -40,7 +40,7 @@
 - iOS 限制跨應用程式自動啟動
 - 最可靠的方法是引導用戶手動操作
 
-### 🎯 Version 4 - Universal Links 技術（最新）
+### 🎯 Version 4 - Universal Links 技術
 **網址**: https://phoenix581228.github.io/lineBrowser_test/index4.html
 
 - ✅ **使用 Apple Universal Links 技術**
@@ -51,6 +51,16 @@
 - ✅ 詳細的執行日誌（成功/警告/錯誤）
 - ✅ 基於專業技術研究實作
 - ✅ 用戶友善的確認介面
+
+### 🚀 Version 5 - Universal Links 優化版（最新）
+**網址**: https://phoenix581228.github.io/lineBrowser_test/index5.html
+
+- ✅ **與 Version 4 功能完全相同**
+- ✅ **新檔名避免 LINE 快取問題**
+- ✅ 手動確認後嘗試跳轉到 Safari
+- ✅ 失敗時顯示手動引導
+- ✅ 智能檢測避免無限循環
+- ✅ 詳細執行日誌記錄
 
 #### 為什麼 Version 4 可能成功？
 
@@ -68,7 +78,8 @@
 - **Version 1** (手動選擇): https://phoenix581228.github.io/lineBrowser_test/
 - **Version 2** (自動跳轉-實驗): https://phoenix581228.github.io/lineBrowser_test/index2.html
 - **Version 3** (智能引導): https://phoenix581228.github.io/lineBrowser_test/index3.html
-- **Version 4** (Universal Links-最新): https://phoenix581228.github.io/lineBrowser_test/index4.html
+- **Version 4** (Universal Links): https://phoenix581228.github.io/lineBrowser_test/index4.html
+- **Version 5** (Universal Links-最新): https://phoenix581228.github.io/lineBrowser_test/index5.html
 
 ## 使用方式
 
@@ -103,8 +114,8 @@
      2. 選擇「在 Chrome 中開啟」
 4. 可使用「複製網址」按鈕快速複製
 
-### Version 4 - Universal Links（最新技術）
-1. 在 LINE 聊天中分享 Version 4 URL
+### Version 4 / Version 5 - Universal Links（最新技術）
+1. 在 LINE 聊天中分享 Version 5 URL（推薦）或 Version 4 URL
 2. 點擊連結用 LINE 內建瀏覽器開啟
 3. 系統顯示確認對話框，提供三個選項：
    - 🚀 **嘗試在 Safari 中開啟**：使用 Universal Link 技術嘗試跳轉
@@ -115,6 +126,8 @@
    - ✅ **成功**：頁面在 Safari 中開啟
    - ⚠️ **失敗**：3 秒後自動顯示手動操作指引
 5. 查看詳細執行日誌了解跳轉過程
+
+**注意**：Version 5 使用新檔名避免 LINE 快取問題，功能與 Version 4 完全相同。
 
 ## 技術實作
 

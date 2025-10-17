@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE 瀏覽器 Universal Links POC v5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .tech-badge {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin: 5px;
+        }
+
+        .browser-info {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .browser-info p {
+            margin: 10px 0;
+            color: #666;
+            word-break: break-all;
+        }
+
+        .browser-info strong {
+            color: #333;
+        }
+
+        .action-log {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .action-log p {
+            margin: 5px 0;
+            color: #1976d2;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-success {
+            color: #4CAF50 !important;
+            font-weight: bold;
+        }
+
+        .log-warning {
+            color: #FF9800 !important;
+            font-weight: bold;
+        }
+
+        .log-error {
+            color: #f44336 !important;
+            font-weight: bold;
+        }
+
+        /* 跳轉中對話框 */
+        #redirect-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 90%;
+            width: 400px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translate(-50%, -40%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .modal-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .modal-text {
+            color: #666;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .instruction-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .instruction-step {
+            display: flex;
+            align-items: start;
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .step-number {
+            background: white;
+            color: #667eea;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .step-text {
+            flex: 1;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .visual-hint {
+            background: #fff8c5;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .icon-demo {
+            font-size: 40px;
+            margin: 10px 0;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .status-line {
+            background: #06c755;
+            color: white;
+        }
+
+        .status-redirecting {
+            background: #FF9800;
+            color: white;
+        }
+
+        .status-normal {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: white;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 主要內容 -->
+    <div class="main-content">
+        <span class="version-badge">VERSION 5.0 - Universal Links</span>
+        <h1>LINE 瀏覽器智能跳轉</h1>
+        <p style="color: #666; margin-bottom: 10px;">
+            <span class="tech-badge">Universal Links</span>
+            <span class="tech-badge">手動確認 + 智能引導</span>
+        </p>
+
+        <div id="status"></div>
+
+        <div class="browser-info">
+            <p><strong>User Agent:</strong></p>
+            <p id="userAgent"></p>
+            <p style="margin-top: 15px;"><strong>偵測結果:</strong></p>
+            <p id="detectionResult"></p>
+            <p style="margin-top: 15px;"><strong>URL 參數:</strong></p>
+            <p id="urlParams"></p>
+        </div>
+
+        <div class="action-log" id="actionLog">
+            <strong>執行日誌：</strong>
+        </div>
+    </div>
+
+    <!-- 跳轉中對話框 -->
+    <div id="redirect-modal">
+        <div class="modal-content">
+            <div class="modal-icon">🍎</div>
+            <div class="modal-title" id="modalTitle">在 Safari 中開啟</div>
+            <p class="modal-text" id="modalText">
+                偵測到您使用 iOS LINE 內建瀏覽器<br>
+                建議在 Safari 中開啟以獲得最佳體驗
+            </p>
+
+            <!-- 確認按鈕區 -->
+            <div id="confirmButtons" class="button-group">
+                <button class="btn btn-primary" onclick="tryUniversalLink()">
+                    🚀 嘗試在 Safari 中開啟
+                </button>
+                <button class="btn btn-secondary" onclick="showManualInstructions()">
+                    📋 顯示手動操作步驟
+                </button>
+                <button class="btn btn-secondary" onclick="dismissModal()">
+                    ✗ 關閉
+                </button>
+            </div>
+
+            <!-- 跳轉中動畫 -->
+            <div id="redirectingStatus" style="display: none;">
+                <div class="spinner"></div>
+                <p class="modal-text">正在嘗試跳轉...</p>
+            </div>
+
+            <!-- 手動指引 -->
+            <div id="manualInstructions" style="display: none;">
+                <div class="instruction-box">
+                    <div class="instruction-step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">
+                            點擊<strong>右下角的三個點</strong>（直式 ⋮）
+                        </div>
+                    </div>
+                    <div class="visual-hint">
+                        <div class="icon-demo">⋮</div>
+                        <small>選單圖示</small>
+                    </div>
+
+                    <div class="instruction-step">
+                        <div class="step-number">2</div>
+                        <div class="step-text">
+                            點擊<strong>「複製連結」</strong>或<strong>「複製網址」</strong>
+                        </div>
+                    </div>
+
+                    <div class="instruction-step">
+                        <div class="step-number">3</div>
+                        <div class="step-text">
+                            開啟 <strong>Safari 瀏覽器</strong>
+                        </div>
+                    </div>
+
+                    <div class="instruction-step">
+                        <div class="step-number">4</div>
+                        <div class="step-text">
+                            在網址列<strong>貼上</strong>並前往
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="copyUrl()">
+                        📋 複製網址
+                    </button>
+                    <button class="btn btn-secondary" onclick="dismissModal()">
+                        我知道了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 LINE Browser Universal Links POC v5
+    </div>
+
+    <script>
+        // 全局變數
+        let redirectAttempted = false;
+
+        /**
+         * 記錄執行日誌
+         */
+        function logAction(message, type = 'info') {
+            const logDiv = document.getElementById('actionLog');
+            const timestamp = new Date().toLocaleTimeString('zh-TW');
+            const logEntry = document.createElement('p');
+
+            let className = '';
+            if (type === 'success') className = 'log-success';
+            if (type === 'warning') className = 'log-warning';
+            if (type === 'error') className = 'log-error';
+
+            logEntry.className = className;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(logEntry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        /**
+         * 判斷是否在 LINE App 內建瀏覽器中
+         */
+        function isLineBrowser() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua);
+        }
+
+        /**
+         * 判斷是否為 iOS LINE 瀏覽器
+         */
+        function isLineIOS() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua) && /iPhone|iPad|iPod/i.test(ua);
+        }
+
+        /**
+         * 判斷是否為 Android LINE 瀏覽器
+         */
+        function isLineAndroid() {
+            const ua = navigator.userAgent || '';
+            return /Line/i.test(ua) && /Android/i.test(ua);
+        }
+
+        /**
+         * 檢查是否來自 LINE 重導向
+         */
+        function isFromLineRedirect() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('fromLine') === '1';
+        }
+
+        /**
+         * 使用 Universal Link 跳轉到 Safari
+         */
+        function attemptUniversalLinkRedirect() {
+            if (redirectAttempted) {
+                logAction('已嘗試過跳轉，避免無限循環', 'warning');
+                return;
+            }
+
+            redirectAttempted = true;
+            logAction('開始 Universal Link 跳轉嘗試...', 'info');
+
+            // 顯示跳轉對話框
+            showRedirectModal();
+
+            // 構建 Universal Link URL
+            const baseUrl = window.location.origin + window.location.pathname;
+            const universalLink = `${baseUrl}?fromLine=1&timestamp=${Date.now()}`;
+
+            logAction(`Universal Link: ${universalLink}`, 'info');
+
+            // 嘗試跳轉
+            try {
+                window.location.href = universalLink;
+                logAction('已發送跳轉請求', 'success');
+
+                // 3 秒後檢查是否還在 LINE 瀏覽器
+                setTimeout(() => {
+                    if (isLineBrowser()) {
+                        logAction('自動跳轉失敗，顯示手動指引', 'warning');
+                        showManualInstructions();
+                    }
+                }, 3000);
+
+            } catch (e) {
+                logAction('跳轉錯誤: ' + e.message, 'error');
+                showManualInstructions();
+            }
+        }
+
+        /**
+         * 顯示確認對話框（新增）
+         */
+        function showConfirmModal() {
+            const modal = document.getElementById('redirect-modal');
+            modal.style.display = 'block';
+
+            // 確保顯示確認按鈕，隱藏其他區塊
+            document.getElementById('confirmButtons').style.display = 'flex';
+            document.getElementById('redirectingStatus').style.display = 'none';
+            document.getElementById('manualInstructions').style.display = 'none';
+
+            logAction('顯示確認對話框，等待用戶操作', 'info');
+        }
+
+        /**
+         * 用戶點擊「嘗試在 Safari 中開啟」按鈕（新增）
+         */
+        function tryUniversalLink() {
+            if (redirectAttempted) {
+                logAction('已嘗試過跳轉，避免無限循環', 'warning');
+                showManualInstructions();
+                return;
+            }
+
+            // 隱藏確認按鈕，顯示跳轉中狀態
+            document.getElementById('confirmButtons').style.display = 'none';
+            document.getElementById('redirectingStatus').style.display = 'block';
+
+            redirectAttempted = true;
+            logAction('用戶確認嘗試跳轉...', 'info');
+
+            // 構建 Universal Link URL
+            const baseUrl = window.location.origin + window.location.pathname;
+            const universalLink = `${baseUrl}?fromLine=1&timestamp=${Date.now()}`;
+
+            logAction(`Universal Link: ${universalLink}`, 'info');
+
+            // 嘗試跳轉
+            try {
+                window.location.href = universalLink;
+                logAction('已發送跳轉請求', 'success');
+
+                // 3 秒後檢查是否還在 LINE 瀏覽器
+                setTimeout(() => {
+                    if (isLineBrowser()) {
+                        logAction('自動跳轉失敗，顯示手動指引', 'warning');
+                        showManualInstructions();
+                    }
+                }, 3000);
+
+            } catch (e) {
+                logAction('跳轉錯誤: ' + e.message, 'error');
+                showManualInstructions();
+            }
+        }
+
+        /**
+         * 顯示跳轉對話框（保留供舊函數調用）
+         */
+        function showRedirectModal() {
+            showConfirmModal();
+        }
+
+        /**
+         * 顯示手動操作指引（更新）
+         */
+        function showManualInstructions() {
+            document.getElementById('modalTitle').textContent = '需要手動操作';
+            document.getElementById('modalText').textContent = '自動跳轉未成功，請按照以下步驟手動開啟：';
+
+            // 隱藏確認按鈕和跳轉中狀態，顯示手動指引
+            document.getElementById('confirmButtons').style.display = 'none';
+            document.getElementById('redirectingStatus').style.display = 'none';
+            document.getElementById('manualInstructions').style.display = 'block';
+
+            logAction('切換至手動操作指引', 'info');
+        }
+
+        /**
+         * 複製當前網址
+         */
+        function copyUrl() {
+            // 移除 fromLine 參數以避免循環
+            const url = window.location.origin + window.location.pathname;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('✓ 網址已複製！\n請開啟 Safari 並貼上網址');
+                    logAction('網址已複製到剪貼簿', 'success');
+                }).catch(() => {
+                    fallbackCopy(url);
+                });
+            } else {
+                fallbackCopy(url);
+            }
+        }
+
+        /**
+         * 備用複製方法
+         */
+        function fallbackCopy(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-1000px';
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                alert('✓ 網址已複製！\n請開啟 Safari 並貼上網址');
+                logAction('網址已複製（備用方法）', 'success');
+            } catch (err) {
+                alert('複製失敗，請手動複製：\n' + text);
+                logAction('複製失敗', 'error');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        /**
+         * 關閉對話框
+         */
+        function dismissModal() {
+            document.getElementById('redirect-modal').style.display = 'none';
+            sessionStorage.setItem('redirectDismissed', 'true');
+            logAction('用戶關閉對話框', 'info');
+        }
+
+        /**
+         * 顯示瀏覽器資訊
+         */
+        function displayBrowserInfo() {
+            const userAgentElement = document.getElementById('userAgent');
+            const detectionResultElement = document.getElementById('detectionResult');
+            const statusElement = document.getElementById('status');
+            const urlParamsElement = document.getElementById('urlParams');
+
+            // 顯示 User Agent
+            userAgentElement.textContent = navigator.userAgent;
+
+            // 顯示 URL 參數
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramsObj = {};
+            for (let [key, value] of urlParams) {
+                paramsObj[key] = value;
+            }
+            urlParamsElement.textContent = Object.keys(paramsObj).length > 0
+                ? JSON.stringify(paramsObj, null, 2)
+                : '無參數';
+
+            logAction('頁面載入完成', 'success');
+
+            // 檢查是否來自重導向
+            if (isFromLineRedirect()) {
+                logAction('偵測到 fromLine 參數 - 這是重導向後的頁面', 'warning');
+            }
+
+            // 顯示偵測結果並決定是否跳轉
+            if (isLineIOS()) {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #007aff; font-weight: bold;">✓ iOS LINE 內建瀏覽器</span>
+                `;
+
+                logAction('偵測到 iOS LINE 瀏覽器', 'warning');
+
+                // 顯示確認對話框，不自動跳轉
+                if (!isFromLineRedirect() && !sessionStorage.getItem('redirectDismissed')) {
+                    statusElement.innerHTML = '<span class="status-badge status-line">請點擊按鈕嘗試在 Safari 中開啟</span>';
+                    setTimeout(() => {
+                        showConfirmModal();
+                    }, 1000);
+                } else {
+                    statusElement.innerHTML = '<span class="status-badge status-line">建議在 Safari 中開啟</span>';
+                    logAction('跳過顯示對話框（來自重導向或用戶已取消）', 'info');
+                }
+
+            } else if (isLineAndroid()) {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #3ddc84; font-weight: bold;">✓ Android LINE 內建瀏覽器</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-line">建議在 Chrome 中開啟</span>';
+                logAction('偵測到 Android LINE 瀏覽器', 'warning');
+
+            } else if (isLineBrowser()) {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #06c755; font-weight: bold;">✓ LINE 內建瀏覽器（未知平台）</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-line">LINE 瀏覽器</span>';
+                logAction('偵測到 LINE 瀏覽器（未知平台）', 'info');
+
+            } else {
+                detectionResultElement.innerHTML = `
+                    <span style="color: #4CAF50; font-weight: bold;">✓ 外部瀏覽器（Safari/Chrome）</span>
+                `;
+                statusElement.innerHTML = '<span class="status-badge status-normal">✓ 瀏覽器正常運作</span>';
+                logAction('偵測到外部瀏覽器 - Universal Link 跳轉成功！', 'success');
+            }
+        }
+
+        // 頁面載入時執行
+        window.addEventListener('DOMContentLoaded', () => {
+            displayBrowserInfo();
+        });
+    </script>
+</body>
+</html>
