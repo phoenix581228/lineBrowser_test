@@ -311,7 +311,7 @@
         <h1>LINE 瀏覽器智能跳轉</h1>
         <p style="color: #666; margin-bottom: 10px;">
             <span class="tech-badge">Universal Links</span>
-            <span class="tech-badge">自動跳轉 + 手動引導</span>
+            <span class="tech-badge">手動確認 + 智能引導</span>
         </p>
 
         <div id="status"></div>
@@ -333,12 +333,33 @@
     <!-- 跳轉中對話框 -->
     <div id="redirect-modal">
         <div class="modal-content">
-            <div class="modal-icon">🚀</div>
-            <div class="modal-title" id="modalTitle">嘗試自動跳轉...</div>
-            <div class="spinner"></div>
+            <div class="modal-icon">🍎</div>
+            <div class="modal-title" id="modalTitle">在 Safari 中開啟</div>
             <p class="modal-text" id="modalText">
-                正在使用 Universal Link 技術嘗試在 Safari 中開啟
+                偵測到您使用 iOS LINE 內建瀏覽器<br>
+                建議在 Safari 中開啟以獲得最佳體驗
             </p>
+
+            <!-- 確認按鈕區 -->
+            <div id="confirmButtons" class="button-group">
+                <button class="btn btn-primary" onclick="tryUniversalLink()">
+                    🚀 嘗試在 Safari 中開啟
+                </button>
+                <button class="btn btn-secondary" onclick="showManualInstructions()">
+                    📋 顯示手動操作步驟
+                </button>
+                <button class="btn btn-secondary" onclick="dismissModal()">
+                    ✗ 關閉
+                </button>
+            </div>
+
+            <!-- 跳轉中動畫 -->
+            <div id="redirectingStatus" style="display: none;">
+                <div class="spinner"></div>
+                <p class="modal-text">正在嘗試跳轉...</p>
+            </div>
+
+            <!-- 手動指引 -->
             <div id="manualInstructions" style="display: none;">
                 <div class="instruction-box">
                     <div class="instruction-step">
@@ -486,21 +507,82 @@
         }
 
         /**
-         * 顯示跳轉對話框
+         * 顯示確認對話框（新增）
          */
-        function showRedirectModal() {
+        function showConfirmModal() {
             const modal = document.getElementById('redirect-modal');
             modal.style.display = 'block';
+
+            // 確保顯示確認按鈕，隱藏其他區塊
+            document.getElementById('confirmButtons').style.display = 'flex';
+            document.getElementById('redirectingStatus').style.display = 'none';
+            document.getElementById('manualInstructions').style.display = 'none';
+
+            logAction('顯示確認對話框，等待用戶操作', 'info');
         }
 
         /**
-         * 顯示手動操作指引
+         * 用戶點擊「嘗試在 Safari 中開啟」按鈕（新增）
+         */
+        function tryUniversalLink() {
+            if (redirectAttempted) {
+                logAction('已嘗試過跳轉，避免無限循環', 'warning');
+                showManualInstructions();
+                return;
+            }
+
+            // 隱藏確認按鈕，顯示跳轉中狀態
+            document.getElementById('confirmButtons').style.display = 'none';
+            document.getElementById('redirectingStatus').style.display = 'block';
+
+            redirectAttempted = true;
+            logAction('用戶確認嘗試跳轉...', 'info');
+
+            // 構建 Universal Link URL
+            const baseUrl = window.location.origin + window.location.pathname;
+            const universalLink = `${baseUrl}?fromLine=1&timestamp=${Date.now()}`;
+
+            logAction(`Universal Link: ${universalLink}`, 'info');
+
+            // 嘗試跳轉
+            try {
+                window.location.href = universalLink;
+                logAction('已發送跳轉請求', 'success');
+
+                // 3 秒後檢查是否還在 LINE 瀏覽器
+                setTimeout(() => {
+                    if (isLineBrowser()) {
+                        logAction('自動跳轉失敗，顯示手動指引', 'warning');
+                        showManualInstructions();
+                    }
+                }, 3000);
+
+            } catch (e) {
+                logAction('跳轉錯誤: ' + e.message, 'error');
+                showManualInstructions();
+            }
+        }
+
+        /**
+         * 顯示跳轉對話框（保留供舊函數調用）
+         */
+        function showRedirectModal() {
+            showConfirmModal();
+        }
+
+        /**
+         * 顯示手動操作指引（更新）
          */
         function showManualInstructions() {
             document.getElementById('modalTitle').textContent = '需要手動操作';
             document.getElementById('modalText').textContent = '自動跳轉未成功，請按照以下步驟手動開啟：';
-            document.querySelector('.spinner').style.display = 'none';
+
+            // 隱藏確認按鈕和跳轉中狀態，顯示手動指引
+            document.getElementById('confirmButtons').style.display = 'none';
+            document.getElementById('redirectingStatus').style.display = 'none';
             document.getElementById('manualInstructions').style.display = 'block';
+
+            logAction('切換至手動操作指引', 'info');
         }
 
         /**
@@ -591,15 +673,15 @@
 
                 logAction('偵測到 iOS LINE 瀏覽器', 'warning');
 
-                // 如果不是來自重導向，且用戶未取消過，則嘗試跳轉
+                // 顯示確認對話框，不自動跳轉
                 if (!isFromLineRedirect() && !sessionStorage.getItem('redirectDismissed')) {
-                    statusElement.innerHTML = '<span class="status-badge status-redirecting">準備跳轉至 Safari...</span>';
+                    statusElement.innerHTML = '<span class="status-badge status-line">請點擊按鈕嘗試在 Safari 中開啟</span>';
                     setTimeout(() => {
-                        attemptUniversalLinkRedirect();
-                    }, 1500);
+                        showConfirmModal();
+                    }, 1000);
                 } else {
                     statusElement.innerHTML = '<span class="status-badge status-line">建議在 Safari 中開啟</span>';
-                    logAction('跳過自動跳轉（來自重導向或用戶已取消）', 'info');
+                    logAction('跳過顯示對話框（來自重導向或用戶已取消）', 'info');
                 }
 
             } else if (isLineAndroid()) {
